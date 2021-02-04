@@ -1,0 +1,14 @@
+# What a sample request might look like
+POST  http://localhost:3000/ HTTP/1.1
+content-type: application/json
+
+{
+ "data": [{"author":"alice","stars":"3.7500"},{"author":"adam","stars":"5.0000"},{"author":"lakhoune","stars":"3.5000"},{"author":"ben.lakhoune@rwth-aachen.de","stars":"4.3333"},{"author":"aaron.conrardy@rwth-aachen.de","stars":"1.0000"}],
+ "chartType":"BarChart",
+ "options":{
+     "title":"Average stars per user",
+     "hAxis":{
+         "title":"Average stars"
+     }
+ }
+}
