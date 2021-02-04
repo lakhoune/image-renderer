@@ -13,6 +13,33 @@ app.get('/', async (req, res) => {
   res.send(image);
 });
 
+app.post('/', async (req, res) => {
+  console.log(req.body);
+
+  let data = req.body.data;
+  if (typeof data == 'string') {
+    data = JSON.parse(data);
+  }
+  // console.log(data);
+  const drawchartString = formatChartString(data, req.body.chartType, req.body.options);
+  // console.log(drawchartString);
+  await GoogleChartsNode.render(drawchartString)
+    .then((image) => {
+      // console.log(image.buffer);
+      // res.header('Content-Type', 'image/png');
+      // res.send(image);
+      res.writeHead(200, {
+        'Content-Type': 'image/png',
+        'Content-Length': image.length,
+      });
+      res.end(image);
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(400).send(err);
+    });
+});
+
 app.post('/customQuery', async (req, res) => {
   console.log(req.body);
   if (req.body.customQuery) {
@@ -49,17 +76,22 @@ app.listen(port, () => {
 });
 
 function drawChart() {
-  let options = { title: 'Sample Chart: Average stars' };
+  let options = {
+    title: 'Sample Chart: Average stars',
+    vAxis: { title: 'Average stars' },
+    height: 600,
+    width: 700,
+  };
   let data = google.visualization.arrayToDataTable([
     ['author', 'stars'],
     ['alice', 3.75],
-    ['adam', 5.0],
-    ['lakhoune', 3.5],
-    ['ben.lakhoune@rwth-aachen.de', 4.3333],
-    ['aaron.conrardy@rwth-aachen.de', 1.0],
+    ['bob', 5.0],
+    ['charly', 3.5],
+    ['ben', 4.3333],
+    ['aaron', 1.0],
   ]);
 
-  let chart = new google.visualization.BarChart(container);
+  let chart = new google.visualization.ColumnChart(container);
   chart.draw(data, options);
 }
 
