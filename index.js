@@ -4,7 +4,7 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const bodyParser = require('body-parser');
-const { renderGoogleChart } = require('google-charts-node/lib/render');
+
 app.use(bodyParser.json());
 const defaultChartType = 'PieChart';
 
@@ -151,9 +151,20 @@ function checkData(data) {
   }
 
   let dataEntrySize = data[0].length; //size which all entries need to be
+  if (dataEntrySize < 2) {
+    throw new Error('Data entries should have at least two properties');
+  }
   for (const arrayEntry of data) {
     if (arrayEntry.length != dataEntrySize) {
       throw new Error('Data entries have different size');
+    }
+    if (typeof arrayEntry[0] != 'string') {
+      throw new Error(
+        'The first entry of each datapoint must be of type string, you provided: ' +
+          arrayEntry[0] +
+          ' of type ' +
+          typeof arrayEntry[0]
+      );
     }
   }
 }
