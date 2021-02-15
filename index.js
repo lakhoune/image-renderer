@@ -20,8 +20,14 @@ app.post('/', renderCustomChart);
 app.post('/customQuery', async (req, res) => {
   console.log(req.body);
   if (req.body.customQuery) {
-    req.body.data = req.body.customQuery;
-    renderCustomChart(req, res);
+    let customQuery = req.body.customQuery;
+    if (typeof customQuery == 'string') {
+      customQuery = JSON.parse(req.body.customQuery);
+    }
+    req.body.data = customQuery.result;
+    let order = customQuery.order;
+
+    renderCustomChart(req, res, order);
   } else {
     console.log('wrong type');
     res.status(400).send('This type of query is not currently supported. ');
@@ -32,39 +38,75 @@ app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`);
 });
 
-async function renderCustomChart(req, res) {
-  console.log(req.body);
-
+async function renderCustomChart(req, res, order) {
   let data = req.body.data; //data as json array or jsonString
   if (typeof data == 'string') {
     data = JSON.parse(data);
   }
   try {
-    data = data.map((element) => [...Object.values(element)]); //json array might contain entries as object. This make sure that they are an array
-    if (req.body.clean == false) {
-    } else {
-      //Recommended. This makes sure that the data can actually be visualized
-      data = cleanData(data);
-    }
-    checkData(data);
+    if (order) {
+      data = getOrderedData(data, order);
+      console.log(data);
 
-    const drawchartString = formatChartString(data, req.body.chartType, req.body.options);
+      if (req.body.clean == false) {
+      } else {
+        //Recommended. This makes sure that the data can actually be visualized
+        data = cleanData(data);
+      }
+      checkData(data);
 
-    await GoogleChartsNode.render(drawchartString)
-      .then((image) => {
-        // console.log(image.buffer);
-        // res.header('Content-Type', 'image/png');
-        // res.send(image);
-        res.writeHead(200, {
-          'Content-Type': 'image/png',
-          'Content-Length': image.length,
+      const drawchartString = formatChartStringFromArray(
+        data,
+        req.body.chartType,
+        req.body.options,
+        order
+      );
+      console.log(drawchartString);
+      await GoogleChartsNode.render(drawchartString)
+        .then((image) => {
+          // console.log(image.buffer);
+          // res.header('Content-Type', 'image/png');
+          // res.send(image);
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': image.length,
+          });
+          res.end(image);
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(400).send(err);
         });
-        res.end(image);
-      })
-      .catch((err) => {
-        console.error(err);
-        res.status(400).send(err);
-      });
+    } else {
+      data = data.map((element) => [...Object.values(element)]); //json array might contain entries as object. This make sure that they are an array
+
+      console.log(data);
+
+      if (req.body.clean == false) {
+      } else {
+        //Recommended. This makes sure that the data can actually be visualized
+        data = cleanData(data);
+      }
+      checkData(data);
+
+      const drawchartString = formatChartString(data, req.body.chartType, req.body.options);
+      console.log(drawchartString);
+      await GoogleChartsNode.render(drawchartString)
+        .then((image) => {
+          // console.log(image.buffer);
+          // res.header('Content-Type', 'image/png');
+          // res.send(image);
+          res.writeHead(200, {
+            'Content-Type': 'image/png',
+            'Content-Length': image.length,
+          });
+          res.end(image);
+        })
+        .catch((err) => {
+          console.error(err);
+          res.status(400).send(err);
+        });
+    }
   } catch (error) {
     console.error(error);
     res.status(422).send(error.message);
@@ -134,6 +176,27 @@ function formatChartString(data, chartType, options) {
   var chart = new google.visualization.${chartType}(document.getElementById('chart_div'));
   chart.draw(data, options);`;
 }
+
+function formatChartStringFromArray(data, chartType, options, order) {
+  if (!chartType) {
+    chartType = defaultChartType;
+  }
+  if (options) {
+    options = JSON.stringify(options);
+  } else {
+    options = '{}';
+  }
+  let array = [];
+  array.push(order);
+  data.forEach((entry) => {
+    array.push(entry);
+  });
+  return `
+  let data = google.visualization.arrayToDataTable(${JSON.stringify(array)});
+   var options = {};
+  var chart = new google.visualization.${chartType}(container);
+  chart.draw(data, options);`;
+}
 /**
  * checks if n is actually a number
  * @param {number} n
@@ -183,4 +246,19 @@ function cleanData(data) {
  */
 function getMaxEntrySize(data) {
   return data.reduce((maxSize, curr) => (curr.length > maxSize ? curr.length : maxSize), 0);
+}
+
+function getOrderedData(data, order) {
+  return data
+    .map((element) => {
+      let newElement = []; //create new element
+      order.forEach((key) => {
+        console.log(key);
+        if (element[key]) {
+          newElement.push(element[key]);
+        }
+      });
+      return newElement;
+    })
+    .filter((element) => element.length > 0);
 }
